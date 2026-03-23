@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Student = require("../models/Student");
 const Drive = require("../models/Drive");
+const Application = require("../models/Application");
 const { verifyToken, requireRole } = require("../middleware/auth");
 
 const router = express.Router();
@@ -10,7 +11,7 @@ const router = express.Router();
 // Student signup
 router.post("/signup", async (req, res) => {
   try {
-    const { rollNumber, password } = req.body;
+    const { rollNumber, password, email } = req.body;
 
     if (!rollNumber || !password) {
       return res.status(400).json({ message: "Roll number and password are required" });
@@ -29,6 +30,8 @@ router.post("/signup", async (req, res) => {
     const student = await Student.create({
       rollNumber: rollNumber.toUpperCase(),
       password: hashedPassword,
+      email: email ? email.toLowerCase() : "",
+      emailVerified: true,
     });
 
     res.status(201).json({
@@ -72,7 +75,10 @@ router.post("/login", async (req, res) => {
         _id: student._id,
         rollNumber: student.rollNumber,
         name: student.name,
+        email: student.email,
+        branch: student.branch,
         profileCompleted: student.profileCompleted,
+        placementStatus: student.placementStatus,
       },
     });
   } catch (error) {
@@ -80,10 +86,15 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Get student profile
+// Get current student
 router.get("/me", verifyToken, requireRole("student"), async (req, res) => {
   try {
-    const student = await Student.findById(req.user.id).select("-password");
+    const student = await Student.findById(req.user.id).select("-password -otpCode -otpExpires");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
     res.json(student);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -99,7 +110,7 @@ router.put("/profile", verifyToken, requireRole("student"), async (req, res) => 
       typeof skills === "string"
         ? skills.split(",").map((s) => s.trim()).filter(Boolean)
         : Array.isArray(skills)
-        ? skills.map((s) => s.trim()).filter(Boolean)
+        ? skills.map((s) => String(s).trim()).filter(Boolean)
         : [];
 
     const student = await Student.findByIdAndUpdate(
@@ -107,15 +118,15 @@ router.put("/profile", verifyToken, requireRole("student"), async (req, res) => 
       {
         name,
         branch,
-        cgpa: Number(cgpa),
-        backlogs: Number(backlogs),
-        year: Number(year),
+        cgpa: Number(cgpa) || 0,
+        backlogs: Number(backlogs) || 0,
+        year: Number(year) || 0,
         skills: parsedSkills,
         workExperience,
         profileCompleted: true,
       },
       { new: true }
-    ).select("-password");
+    ).select("-password -otpCode -otpExpires");
 
     res.json({
       message: "Profile updated successfully",
@@ -131,29 +142,44 @@ router.get("/eligible-drives", verifyToken, requireRole("student"), async (req, 
   try {
     const student = await Student.findById(req.user.id);
 
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
     if (!student.profileCompleted) {
       return res.status(400).json({ message: "Complete profile first" });
     }
 
-    const drives = await Drive.find().sort({ createdAt: -1 });
+    const [drives, applications] = await Promise.all([
+      Drive.find().sort({ createdAt: -1 }),
+      Application.find({ student: req.user.id }).select("drive"),
+    ]);
 
-    const eligibleDrives = drives.filter((drive) => {
-      const cgpaOk = student.cgpa >= drive.minCGPA;
-      const branchOk =
-        drive.allowedBranches.length === 0 ||
-        drive.allowedBranches.includes(student.branch);
-      const backlogOk = student.backlogs <= drive.maxBacklogs;
+    const appliedDriveIds = new Set(applications.map((app) => String(app.drive)));
+    const studentBranch = (student.branch || "").trim().toLowerCase();
+    const studentSkills = (student.skills || []).map((s) => String(s).trim().toLowerCase());
 
-      const studentSkillsLower = student.skills.map((s) => s.toLowerCase());
-      const requiredSkillsLower = drive.requiredSkills.map((s) => s.toLowerCase());
+    const eligibleDrives = drives
+      .filter((drive) => {
+        const cgpaOk = Number(student.cgpa || 0) >= Number(drive.minCGPA || 0);
+        const backlogOk = Number(student.backlogs || 0) <= Number(drive.maxBacklogs ?? 99);
 
-      // At least one matching skill if required skills exist
-      const skillsOk =
-        requiredSkillsLower.length === 0 ||
-        requiredSkillsLower.some((skill) => studentSkillsLower.includes(skill));
+        const allowedBranches = Array.isArray(drive.allowedBranches)
+          ? drive.allowedBranches.map((b) => String(b).trim().toLowerCase()).filter(Boolean)
+          : [];
+        const branchOk = allowedBranches.length === 0 || allowedBranches.includes(studentBranch);
 
-      return cgpaOk && branchOk && backlogOk && skillsOk;
-    });
+        const requiredSkills = Array.isArray(drive.requiredSkills)
+          ? drive.requiredSkills.map((s) => String(s).trim().toLowerCase()).filter(Boolean)
+          : [];
+        const skillsOk = requiredSkills.length === 0 || requiredSkills.some((skill) => studentSkills.includes(skill));
+
+        return cgpaOk && backlogOk && branchOk && skillsOk;
+      })
+      .map((drive) => ({
+        ...drive.toObject(),
+        hasApplied: appliedDriveIds.has(String(drive._id)),
+      }));
 
     res.json(eligibleDrives);
   } catch (error) {

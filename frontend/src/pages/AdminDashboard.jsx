@@ -1,215 +1,68 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../api";
+import API from "../api/api";
 
-export default function AdminDashboard() {
-  const navigate = useNavigate();
-
-  const [driveForm, setDriveForm] = useState({
-    companyName: "",
-    role: "",
-    package: "",
-    description: "",
-    minCGPA: "",
-    allowedBranches: "",
-    maxBacklogs: "",
-    requiredSkills: "",
-  });
-
-  const [drives, setDrives] = useState([]);
-  const [applications, setApplications] = useState([]);
+export default function Dashboard() {
   const [stats, setStats] = useState(null);
-  const [message, setMessage] = useState("");
-
-  const loadData = async () => {
-    try {
-      const [drivesRes, appsRes, statsRes] = await Promise.all([
-        api.get("/drives"),
-        api.get("/applications"),
-        api.get("/admin/stats"),
-      ]);
-
-      setDrives(drivesRes.data);
-      setApplications(appsRes.data);
-      setStats(statsRes.data);
-    } catch (error) {
-      const msg = error.response?.data?.message || "Please login again";
-      setMessage(msg);
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.clear();
-        navigate("/admin/login");
-      }
-    }
-  };
 
   useEffect(() => {
-    const role = localStorage.getItem("role");
-    const token = localStorage.getItem("token");
-    if (!token || role !== "admin") {
-      navigate("/admin/login");
-      return;
-    }
-    loadData();
-  }, [navigate]);
+    fetchStats();
+  }, []);
 
-  const handleChange = (e) =>
-    setDriveForm({ ...driveForm, [e.target.name]: e.target.value });
-
-  const createDrive = async (e) => {
-    e.preventDefault();
+  const fetchStats = async () => {
     try {
-      await api.post("/drives", driveForm);
-      setMessage("Drive created successfully");
-      setDriveForm({
-        companyName: "",
-        role: "",
-        package: "",
-        description: "",
-        minCGPA: "",
-        allowedBranches: "",
-        maxBacklogs: "",
-        requiredSkills: "",
-      });
-      loadData();
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Could not create drive");
+      const res = await API.get("/dashboard/stats");
+      setStats(res.data);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const deleteDrive = async (id) => {
-    try {
-      await api.delete(`/drives/${id}`);
-      setMessage("Drive deleted successfully");
-      loadData();
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Could not delete drive");
-    }
-  };
-
-  const updateStatus = async (applicationId, status) => {
-    try {
-      await api.put(`/applications/${applicationId}/status`, { status });
-      setMessage("Application status updated");
-      loadData();
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Could not update status");
-    }
-  };
+  if (!stats) return <p>Loading...</p>;
 
   return (
-    <div>
-      <div className="card">
-        <h2>Admin Dashboard</h2>
-        {message && <p className="message">{message}</p>}
+    <div style={{ padding: "20px" }}>
+      <h2>Dashboard</h2>
+
+      {/* TOP CARDS */}
+      <div style={{ display: "flex", gap: "20px" }}>
+        <Card title="Total Students" value={stats.totalStudents} />
+        <Card title="Placed Students" value={stats.placedStudents} />
+        <Card title="Companies" value={stats.totalCompanies} />
+        <Card title="Active Drives" value={stats.activeDrives} />
       </div>
 
-      <div className="card">
-        <h3>Create Drive</h3>
-        <form onSubmit={createDrive} className="form">
-          <input name="companyName" placeholder="Company Name" value={driveForm.companyName} onChange={handleChange} required />
-          <input name="role" placeholder="Job Role" value={driveForm.role} onChange={handleChange} required />
-          <input name="package" placeholder="Package (example: 6 LPA)" value={driveForm.package} onChange={handleChange} required />
-          <textarea name="description" placeholder="Description" value={driveForm.description} onChange={handleChange} />
-          <input name="minCGPA" type="number" step="0.01" placeholder="Minimum CGPA" value={driveForm.minCGPA} onChange={handleChange} required />
-          <input name="allowedBranches" placeholder="Allowed Branches (CSE, IT, ECE)" value={driveForm.allowedBranches} onChange={handleChange} required />
-          <input name="maxBacklogs" type="number" placeholder="Max Backlogs" value={driveForm.maxBacklogs} onChange={handleChange} required />
-          <input name="requiredSkills" placeholder="Required Skills (Java, Python)" value={driveForm.requiredSkills} onChange={handleChange} />
-          <button type="submit" className="btn">Create Drive</button>
-        </form>
-      </div>
+      {/* UPCOMING DRIVES */}
+      <h3 style={{ marginTop: "30px" }}>Upcoming Drives</h3>
+      {stats.upcomingDrives.map((d) => (
+        <div key={d._id}>
+          {d.companyName} - {new Date(d.driveDate).toDateString()}
+        </div>
+      ))}
 
-      <div className="card">
-        <h3>All Drives</h3>
-        {drives.length === 0 ? (
-          <p>No drives created yet.</p>
-        ) : (
-          <div className="list">
-            {drives.map((drive) => (
-              <div className="item" key={drive._id}>
-                <h4>{drive.companyName}</h4>
-                <p><strong>Role:</strong> {drive.role}</p>
-                <p><strong>Package:</strong> {drive.package}</p>
-                <p><strong>Min CGPA:</strong> {drive.minCGPA}</p>
-                <p><strong>Allowed Branches:</strong> {drive.allowedBranches.join(", ")}</p>
-                <p><strong>Max Backlogs:</strong> {drive.maxBacklogs}</p>
-                <p><strong>Required Skills:</strong> {drive.requiredSkills.join(", ")}</p>
-                <button className="small-btn danger" onClick={() => deleteDrive(drive._id)}>
-                  Delete Drive
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* RECENT APPLICATIONS */}
+      <h3 style={{ marginTop: "30px" }}>Recent Applications</h3>
+      {stats.recentApplications.map((app) => (
+        <div key={app._id}>
+          {app.student?.name} → {app.drive?.companyName} ({app.status})
+        </div>
+      ))}
+    </div>
+  );
+}
 
-      <div className="card">
-        <h3>Manage Applications</h3>
-        {applications.length === 0 ? (
-          <p>No applications found.</p>
-        ) : (
-          <div className="list">
-            {applications.map((app) => (
-              <div className="item" key={app._id}>
-                <h4>{app.student?.name} ({app.student?.rollNumber})</h4>
-                <p><strong>Branch:</strong> {app.student?.branch}</p>
-                <p><strong>Company:</strong> {app.drive?.companyName}</p>
-                <p><strong>Role:</strong> {app.drive?.role}</p>
-                <p><strong>Status:</strong> {app.status}</p>
-
-                <div className="row wrap">
-                  <button className="small-btn" onClick={() => updateStatus(app._id, "Applied")}>Applied</button>
-                  <button className="small-btn" onClick={() => updateStatus(app._id, "Shortlisted")}>Shortlisted</button>
-                  <button className="small-btn success" onClick={() => updateStatus(app._id, "Selected")}>Selected</button>
-                  <button className="small-btn danger" onClick={() => updateStatus(app._id, "Rejected")}>Rejected</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="card">
-        <h3>Statistics</h3>
-        {!stats ? (
-          <p>Loading stats...</p>
-        ) : (
-          <>
-            <div className="grid-4">
-              <div className="stat-box">
-                <h4>Total Applications</h4>
-                <p>{stats.totalApplications}</p>
-              </div>
-              <div className="stat-box">
-                <h4>Shortlisted</h4>
-                <p>{stats.shortlistedCount}</p>
-              </div>
-              <div className="stat-box">
-                <h4>Selected</h4>
-                <p>{stats.selectedCount}</p>
-              </div>
-              <div className="stat-box">
-                <h4>Rejected</h4>
-                <p>{stats.rejectedCount}</p>
-              </div>
-            </div>
-
-            <h4 style={{ marginTop: "20px" }}>Applications by Branch</h4>
-            {stats.appliedByBranch.length === 0 ? (
-              <p>No branch-wise data yet.</p>
-            ) : (
-              <div className="list">
-                {stats.appliedByBranch.map((item) => (
-                  <div className="item" key={item._id}>
-                    <p>
-                      <strong>{item._id || "Unknown Branch"}:</strong> {item.count}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+function Card({ title, value }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        padding: "20px",
+        borderRadius: "12px",
+        background: "white",
+        boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+      }}
+    >
+      <h4 style={{ color: "#777" }}>{title}</h4>
+      <h2>{value}</h2>
     </div>
   );
 }

@@ -13,37 +13,37 @@ const studentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    name: {
+    email: {
       type: String,
-      default: "",
+      required: true,
+      default:"",
+      trim: true,
+      lowercase: true,
     },
-    branch: {
-      type: String,
-      default: "",
-    },
-    cgpa: {
-      type: Number,
-      default: 0,
-    },
-    backlogs: {
-      type: Number,
-      default: 0,
-    },
-    year: {
-      type: Number,
-      default: 1,
-    },
-    skills: {
-      type: [String],
-      default: [],
-    },
-    workExperience: {
-      type: String,
-      default: "",
-    },
-    profileCompleted: {
+    emailVerified: {
       type: Boolean,
       default: false,
+    },
+    otpCode: {
+      type: String,
+      default: null,
+    },
+    otpExpires: {
+      type: Date,
+      default: null,
+    },
+    name: { type: String, default: "" },
+    branch: { type: String, default: "" },
+    cgpa: { type: Number, default: 0 },
+    backlogs: { type: Number, default: 0 },
+    year: { type: Number, default: 1 },
+    skills: { type: [String], default: [] },
+    workExperience: { type: String, default: "" },
+    profileCompleted: { type: Boolean, default: false },
+    placementStatus: {
+      type: String,
+      enum: ["Not Placed", "Placed"],
+      default: "Not Placed",
     },
   },
   { timestamps: true }

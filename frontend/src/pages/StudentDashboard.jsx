@@ -1,121 +1,141 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api";
+import API from "../api/api";
 
 export default function StudentDashboard() {
-  const navigate = useNavigate();
-  const [student, setStudent] = useState(null);
-  const [drives, setDrives] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [eligibleDrives, setEligibleDrives] = useState([]);
+  const [student, setStudent] = useState(null);
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
-  const loadData = async () => {
+  const fetchStudent = async () => {
     try {
-      const meRes = await api.get("/student/me");
-      setStudent(meRes.data);
+      const res = await API.get("/student/me");
+      setStudent(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
-      const driveRes = await api.get("/student/eligible-drives");
-      setDrives(driveRes.data);
+  const fetchApplications = async () => {
+    try {
+      const res = await API.get("/applications/my");
+      setApplications(res.data);
+    } catch (err) {
+      setMessage("Failed to fetch applications");
+    }
+  };
 
-      const appRes = await api.get("/applications/my");
-      setApplications(appRes.data);
-    } catch (error) {
-      const msg = error.response?.data?.message || "Please login again";
-      setMessage(msg);
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        localStorage.clear();
-        navigate("/student/login");
-      }
+  const fetchEligibleDrives = async () => {
+    try {
+      const res = await API.get("/student/eligible-drives");
+      setEligibleDrives(res.data);
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Failed to fetch eligible drives");
     }
   };
 
   useEffect(() => {
-    const role = localStorage.getItem("role");
-    const token = localStorage.getItem("token");
-    if (!token || role !== "student") {
-      navigate("/student/login");
-      return;
-    }
-    loadData();
-  }, [navigate]);
+    fetchStudent();
+    fetchApplications();
+    fetchEligibleDrives();
+  }, []);
 
   const applyToDrive = async (driveId) => {
     try {
-      await api.post("/applications/apply", { driveId });
-      setMessage("Applied successfully");
-      loadData();
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Could not apply");
+      const res = await API.post("/applications", { driveId });
+      setMessage(res.data.message);
+      fetchApplications();
+      fetchEligibleDrives();
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Failed to apply");
     }
   };
 
-  const appliedDriveIds = applications.map((app) => app.drive?._id);
-
   return (
-    <div>
-      <div className="card">
-        <h2>Student Dashboard</h2>
-        {student && (
-          <div className="grid-2">
-            <p><strong>Name:</strong> {student.name}</p>
-            <p><strong>Roll Number:</strong> {student.rollNumber}</p>
-            <p><strong>Branch:</strong> {student.branch}</p>
-            <p><strong>CGPA:</strong> {student.cgpa}</p>
-            <p><strong>Backlogs:</strong> {student.backlogs}</p>
-            <p><strong>Year:</strong> {student.year}</p>
-            <p><strong>Skills:</strong> {student.skills?.join(", ")}</p>
-            <p><strong>Work Experience:</strong> {student.workExperience}</p>
-          </div>
-        )}
-        {message && <p className="message">{message}</p>}
-      </div>
+    <div style={{ padding: "20px" }}>
+      <h2>Student Dashboard</h2>
 
-      <div className="card">
+      {student && (
+        <div
+          style={{
+            border: "1px solid #ddd",
+            padding: "16px",
+            marginBottom: "20px",
+            borderRadius: "8px",
+          }}
+        >
+          <h3>Welcome, {student.name || student.rollNumber}</h3>
+          <p>Roll Number: {student.rollNumber}</p>
+          <p>Email: {student.email || "Not added"}</p>
+          <p>Branch: {student.branch || "Not updated"}</p>
+          <p>Placement Status: {student.placementStatus || "Not Placed"}</p>
+
+          <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+            <button onClick={() => navigate("/student/profile")}>
+              Edit Profile
+            </button>
+            <button onClick={() => navigate("/student/drives")}>
+              View All Eligible Drives
+            </button>
+          </div>
+        </div>
+      )}
+
+      {message && <p>{message}</p>}
+
+      <div style={{ marginBottom: "28px" }}>
         <h3>Eligible Drives</h3>
-        {drives.length === 0 ? (
-          <p>No eligible drives available right now.</p>
+        {eligibleDrives.length === 0 ? (
+          <p>No eligible drives available.</p>
         ) : (
-          <div className="list">
-            {drives.map((drive) => (
-              <div className="item" key={drive._id}>
-                <h4>{drive.companyName}</h4>
-                <p><strong>Role:</strong> {drive.role}</p>
-                <p><strong>Package:</strong> {drive.package}</p>
-                <p><strong>Min CGPA:</strong> {drive.minCGPA}</p>
-                <p><strong>Allowed Branches:</strong> {drive.allowedBranches.join(", ")}</p>
-                <p><strong>Max Backlogs:</strong> {drive.maxBacklogs}</p>
-                <p><strong>Required Skills:</strong> {drive.requiredSkills.join(", ")}</p>
-
-                {appliedDriveIds.includes(drive._id) ? (
-                  <button className="btn disabled" disabled>
-                    Already Applied
-                  </button>
-                ) : (
-                  <button className="btn" onClick={() => applyToDrive(drive._id)}>
-                    Apply
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+          eligibleDrives.map((drive) => (
+            <div
+              key={drive._id}
+              style={{
+                border: "1px solid #ddd",
+                padding: "12px",
+                marginBottom: "12px",
+                borderRadius: "8px",
+              }}
+            >
+              <p><strong>{drive.companyName}</strong></p>
+              <p>Role: {drive.role}</p>
+              <p>Package: {drive.package}</p>
+              <p>Description: {drive.description || "No description provided"}</p>
+              <button
+                onClick={() => applyToDrive(drive._id)}
+                disabled={drive.hasApplied}
+              >
+                {drive.hasApplied ? "Already Applied" : "Apply"}
+              </button>
+            </div>
+          ))
         )}
       </div>
 
-      <div className="card">
+      <div>
         <h3>My Applications</h3>
         {applications.length === 0 ? (
-          <p>You have not applied to any drives yet.</p>
+          <p>No applications yet.</p>
         ) : (
-          <div className="list">
-            {applications.map((app) => (
-              <div className="item" key={app._id}>
-                <h4>{app.drive?.companyName}</h4>
-                <p><strong>Role:</strong> {app.drive?.role}</p>
-                <p><strong>Package:</strong> {app.drive?.package}</p>
-                <p><strong>Status:</strong> {app.status}</p>
-              </div>
-            ))}
-          </div>
+          applications.map((app) => (
+            <div
+              key={app._id}
+              style={{
+                border: "1px solid #ddd",
+                padding: "12px",
+                marginBottom: "12px",
+                borderRadius: "8px",
+              }}
+            >
+              <p><strong>{app.drive?.companyName}</strong></p>
+              <p>Role: {app.drive?.role}</p>
+              <p>Package: {app.drive?.package}</p>
+              <p>Status: {app.status}</p>
+            </div>
+          ))
         )}
       </div>
     </div>

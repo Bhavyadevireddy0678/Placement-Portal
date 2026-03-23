@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api";
+import API from "../api/api";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ export default function AdminLogin() {
     setMessage("");
 
     try {
-      const res = await api.post("/admin/login", form);
+      const res = await API.post("/admin/login", form);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("role", res.data.role);
       navigate("/admin/dashboard");

@@ -44,7 +44,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Statistics
+// Admin statistics
 router.get("/stats", verifyToken, requireRole("admin"), async (req, res) => {
   try {
     const totalApplications = await Application.countDocuments();

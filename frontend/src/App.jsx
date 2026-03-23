@@ -1,58 +1,52 @@
-import { Routes, Route, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import Home from "./pages/Home";
 import RoleSelect from "./pages/RoleSelect";
 import StudentSignup from "./pages/StudentSignup";
 import StudentLogin from "./pages/StudentLogin";
+import VerifyOTP from "./pages/VerifyOTP";
 import StudentProfile from "./pages/StudentProfile";
 import StudentDashboard from "./pages/StudentDashboard";
 import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard";
 
-function NavBar() {
-  const navigate = useNavigate();
-  const role = localStorage.getItem("role");
+import AdminLayout from "./components/AdminLayout";
+import Dashboard from "./pages/Dashboard";
+import Students from "./pages/Students";
+import Companies from "./pages/Companies";
+import Drives from "./pages/Drives";
+import DriveDetails from "./pages/DriveDetails";
+import Reports from "./pages/Reports";
+import StudentDrives from "./pages/StudentDrives";
 
-  const logout = () => {
-    localStorage.clear();
-    navigate("/");
-  };
-
+function App() {
   return (
-    <nav className="navbar">
-      <Link to="/" className="brand">
-        Placement Portal
-      </Link>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/role" element={<RoleSelect />} />
 
-      <div className="nav-links">
-        <Link to="/role">Login</Link>
-        {role === "student" && <Link to="/student/dashboard">Student Dashboard</Link>}
-        {role === "admin" && <Link to="/admin/dashboard">Admin Dashboard</Link>}
-        {role && (
-          <button className="small-btn danger" onClick={logout}>
-            Logout
-          </button>
-        )}
-      </div>
-    </nav>
+        <Route path="/student/signup" element={<StudentSignup />} />
+        <Route path="/student/verify-otp" element={<VerifyOTP />} />
+        <Route path="/student/login" element={<StudentLogin />} />
+        <Route path="/student/profile" element={<StudentProfile />} />
+        <Route path="/student/dashboard" element={<StudentDashboard />} />
+        <Route path="/student/drives" element={<StudentDrives />} />
+
+        <Route path="/admin/login" element={<AdminLogin />} />
+
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="students" element={<Students />} />
+          <Route path="companies" element={<Companies />} />
+          <Route path="drives" element={<Drives />} />
+          <Route path="drives/:id" element={<DriveDetails />} />
+          <Route path="reports" element={<Reports />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
-export default function App() {
-  return (
-    <>
-      <NavBar />
-      <div className="page-container">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/role" element={<RoleSelect />} />
-          <Route path="/student/signup" element={<StudentSignup />} />
-          <Route path="/student/login" element={<StudentLogin />} />
-          <Route path="/student/profile" element={<StudentProfile />} />
-          <Route path="/student/dashboard" element={<StudentDashboard />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        </Routes>
-      </div>
-    </>
-  );
-}
+export default App;

@@ -1,37 +1,38 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../api";
+import API from "../api/api";
 
 export default function StudentSignup() {
-  const navigate = useNavigate();
   const [form, setForm] = useState({
     rollNumber: "",
     password: "",
+    email: "",
   });
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
-  const handleChange = (e) =>
+  const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
     try {
-      const res = await api.post("/student/signup", form);
+      const res = await API.post("/student/signup", form);
       setMessage(res.data.message);
-      setTimeout(() => navigate("/student/login"), 1000);
-    } catch (error) {
-      setMessage(error.response?.data?.message || "Something went wrong");
+      navigate("/student/verify-otp", { state: { rollNumber: form.rollNumber } });
+    } catch (err) {
+      setMessage(err.response?.data?.message || "Signup failed");
     }
   };
 
   return (
-    <div className="card">
+    <div>
       <h2>Student Signup</h2>
-      <form onSubmit={handleSubmit} className="form">
+      <form onSubmit={handleSubmit}>
         <input
-          type="text"
           name="rollNumber"
           placeholder="Roll Number"
           value={form.rollNumber}
@@ -46,11 +47,17 @@ export default function StudentSignup() {
           onChange={handleChange}
           required
         />
-        <button type="submit" className="btn">
-          Create Account
-        </button>
+        <input
+          type="email"
+          name="email"
+          placeholder="Email"
+          value={form.email}
+          onChange={handleChange}
+          required
+        />
+        <button type="submit">Signup</button>
       </form>
-      {message && <p className="message">{message}</p>}
+      {message && <p>{message}</p>}
     </div>
   );
 }

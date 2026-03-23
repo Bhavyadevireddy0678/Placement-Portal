@@ -1,7 +1,7 @@
 const express = require("express");
 const Drive = require("../models/Drive");
+const Student = require("../models/Student");
 const { verifyToken, requireRole } = require("../middleware/auth");
-
 const router = express.Router();
 
 // Create drive
@@ -45,8 +45,39 @@ router.post("/", verifyToken, requireRole("admin"), async (req, res) => {
 // Get all drives
 router.get("/", verifyToken, async (req, res) => {
   try {
+    const student = await Student.findById(req.user.id);
+
     const drives = await Drive.find().sort({ createdAt: -1 });
-    res.json(drives);
+
+    const filteredDrives = drives.map((drive) => {
+      let isEligible = true;
+
+      if (drive.minCGPA && student.cgpa < drive.minCGPA) {
+        isEligible = false;
+      }
+
+      if (
+        drive.maxBacklogs !== undefined &&
+        student.backlogs > drive.maxBacklogs
+      ) {
+        isEligible = false;
+      }
+
+      if (
+        drive.allowedBranches &&
+        drive.allowedBranches.length > 0 &&
+        !drive.allowedBranches.includes(student.branch)
+      ) {
+        isEligible = false;
+      }
+
+      return {
+        ...drive.toObject(),
+        isEligible,
+      };
+    });
+
+    res.json(filteredDrives);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
