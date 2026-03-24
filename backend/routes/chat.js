@@ -3,6 +3,10 @@ const { createClient } = require("@supabase/supabase-js");
 
 const router = express.Router();
 
+// ✅ FIX: fetch for Node
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
@@ -12,6 +16,7 @@ router.post("/", async (req, res) => {
   try {
     const { message } = req.body;
 
+    // 1. Get embedding
     const embedRes = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
@@ -23,17 +28,21 @@ router.post("/", async (req, res) => {
         input: message,
       }),
     });
+
     const embedData = await embedRes.json();
     const embedding = embedData.data[0].embedding;
 
+    // 2. Search DB
     const { data: chunks } = await supabase.rpc("match_documents", {
       query_embedding: embedding,
       match_count: 4,
     });
 
     const context =
-      chunks?.map((c) => c.content).join("\n\n") || "No relevant info found.";
+      chunks?.map((c) => c.content).join("\n\n") ||
+      "No relevant info found.";
 
+    // 3. Claude response
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -44,7 +53,7 @@ router.post("/", async (req, res) => {
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
-        system: `You are a helpful placement assistant for students. Answer questions about job descriptions, companies, placement rules, eligibility, and FAQs using only the context below. If the answer is not in the context, say "I don't have that information, please contact the placement cell."
+        system: `You are a placement assistant. Answer only from context.
 
 Context:
 ${context}`,
@@ -53,10 +62,18 @@ ${context}`,
     });
 
     const claudeData = await claudeRes.json();
-    res.json({ answer: claudeData.content[0].text });
+
+    res.json({
+      answer:
+        claudeData?.content?.[0]?.text ||
+        "No response generated.",
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ answer: "Something went wrong. Please try again." });
+    console.error("ERROR:", err);
+    res.status(500).json({
+      answer: "Server error. Check backend logs.",
+    });
   }
 });
 
