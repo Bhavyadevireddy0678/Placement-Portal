@@ -18,6 +18,8 @@ import DriveDetails from "./pages/DriveDetails";
 import Reports from "./pages/Reports";
 import StudentDrives from "./pages/StudentDrives";
 
+import ChatBot from "./components/ChatBot"; // ✅ ADD THIS
+
 function App() {
   return (
     <BrowserRouter>
@@ -45,6 +47,10 @@ function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      {/* ✅ THIS IS THE IMPORTANT PART */}
+      <ChatBot />
+
     </BrowserRouter>
   );
 }
