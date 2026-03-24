@@ -20,6 +20,7 @@ export default function ChatBot() {
 
   async function sendMessage() {
     if (!input.trim() || loading) return;
+
     const userMsg = input.trim();
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text: userMsg }]);
@@ -28,17 +29,25 @@ export default function ChatBot() {
     try {
       const res = await fetch(`${BACKEND_URL}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ message: userMsg }),
       });
+
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "bot", text: data.answer }]);
-    } catch {
+
       setMessages((prev) => [
         ...prev,
-        { role: "bot", text: "Something went wrong. Please try again." },
+        { role: "bot", text: data.answer },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "bot", text: "Server error. Try again." },
       ]);
     }
+
     setLoading(false);
   }
 
@@ -59,7 +68,6 @@ export default function ChatBot() {
             border: "1px solid #e5e7eb",
           }}
         >
-          {/* Header */}
           <div
             style={{
               background: "#4F46E5",
@@ -69,79 +77,51 @@ export default function ChatBot() {
               fontSize: "15px",
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
             }}
           >
-            <span>Placement Assistant</span>
+            Placement Assistant
             <button
               onClick={() => setOpen(false)}
               style={{
                 background: "none",
                 border: "none",
                 color: "#fff",
-                fontSize: "20px",
+                fontSize: "18px",
                 cursor: "pointer",
-                lineHeight: 1,
               }}
             >
               ×
             </button>
           </div>
 
-          {/* Messages */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-            }}
-          >
-            {messages.map((m, i) => (
+          <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
+            {messages.map((msg, i) => (
               <div
                 key={i}
                 style={{
-                  alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                  background: m.role === "user" ? "#4F46E5" : "#F3F4F6",
-                  color: m.role === "user" ? "#fff" : "#111",
-                  padding: "8px 12px",
-                  borderRadius: "12px",
-                  maxWidth: "85%",
-                  fontSize: "13px",
-                  lineHeight: "1.5",
+                  textAlign: msg.role === "user" ? "right" : "left",
+                  marginBottom: "8px",
                 }}
               >
-                {m.text}
+                <span
+                  style={{
+                    background: msg.role === "user" ? "#4F46E5" : "#eee",
+                    color: msg.role === "user" ? "#fff" : "#000",
+                    padding: "8px 10px",
+                    borderRadius: "10px",
+                    display: "inline-block",
+                    maxWidth: "80%",
+                  }}
+                >
+                  {msg.text}
+                </span>
               </div>
             ))}
-            {loading && (
-              <div
-                style={{
-                  alignSelf: "flex-start",
-                  background: "#F3F4F6",
-                  padding: "8px 12px",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  color: "#666",
-                }}
-              >
-                Thinking...
-              </div>
-            )}
-            <div ref={bottomRef} />
+            {loading && <div>Thinking...</div>}
+            <div ref={bottomRef}></div>
           </div>
 
-          {/* Input */}
-          <div
-            style={{
-              padding: "10px",
-              borderTop: "1px solid #e5e7eb",
-              display: "flex",
-              gap: "8px",
-            }}
-          >
+          <div style={{ display: "flex", padding: "10px" }}>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -149,25 +129,20 @@ export default function ChatBot() {
               placeholder="Ask about placements..."
               style={{
                 flex: 1,
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                padding: "8px 10px",
-                fontSize: "13px",
-                outline: "none",
+                padding: "8px",
+                border: "1px solid #ccc",
+                borderRadius: "6px",
               }}
             />
             <button
               onClick={sendMessage}
-              disabled={loading}
               style={{
+                marginLeft: "8px",
+                padding: "8px 12px",
                 background: "#4F46E5",
                 color: "#fff",
                 border: "none",
-                borderRadius: "8px",
-                padding: "8px 14px",
-                cursor: "pointer",
-                fontSize: "13px",
-                fontWeight: "600",
+                borderRadius: "6px",
               }}
             >
               Send
@@ -176,25 +151,20 @@ export default function ChatBot() {
         </div>
       )}
 
-      {/* Floating button */}
       <button
         onClick={() => setOpen(!open)}
         style={{
-          width: "56px",
-          height: "56px",
+          width: "55px",
+          height: "55px",
           borderRadius: "50%",
           background: "#4F46E5",
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 4px 16px rgba(79,70,229,0.4)",
-          fontSize: "24px",
           color: "#fff",
+          border: "none",
+          fontSize: "20px",
+          cursor: "pointer",
         }}
       >
-        {open ? "×" : "💬"}
+        💬
       </button>
     </div>
   );
